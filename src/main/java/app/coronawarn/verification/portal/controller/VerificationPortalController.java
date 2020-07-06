@@ -21,9 +21,11 @@
 
 package app.coronawarn.verification.portal.controller;
 
-
 import app.coronawarn.verification.portal.client.TeleTan;
-import app.coronawarn.verification.portal.client.TeleTanClientSI;
+import app.coronawarn.verification.portal.service.TeleTanService;
+import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
@@ -31,6 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.keycloak.KeycloakPrincipal;
 import org.keycloak.adapters.springsecurity.token.KeycloakAuthenticationToken;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -47,24 +50,21 @@ import org.springframework.web.bind.annotation.RequestMethod;
 public class VerificationPortalController {
 
   /**
+   * The route to the TeleTAN portal teletan web site.
+   */
+  public static final String ROUTE_TELETAN = "/cwa/teletan";
+  /**
    * Session attribute showing that the index template has been shown already at least once in the
    * current session (means that now the teletan template should be shown instead of the index
    * template).
    */
   static final String SESSION_ATTR_TELETAN = "teletan";
-
   /**
    * The route(s) to the TeleTAN portal start web site.
    */
   private static final String ROUTE_INDEX = "/";
   private static final String ROUTE_CWA = "/cwa";
   private static final String ROUTE_START = "/cwa/start";
-
-  /**
-   * The route to the TeleTAN portal teletan web site.
-   */
-  public static final String ROUTE_TELETAN = "/cwa/teletan";
-
   /**
    * The route to log out from the portal web site.
    */
@@ -90,12 +90,30 @@ public class VerificationPortalController {
    */
   private static final String ATTR_TELETAN = "teleTAN";
   private static final String ATTR_USER = "userName";
+  private static final String ATTR_PW_RESET_URL = "pwResetUrl";
+
+  /**
+   * The Keycloak password reset URL.
+   */
+  @Value("${keycloak-pw.reset-url}")
+  private String pwResetUrl;
+  
+  private static final Map<String, LocalDateTime> rateLimitingUserMap = new ConcurrentHashMap<String, LocalDateTime>();
+  
+  @Value("${rateLimiting.enabled}")
+  private boolean rateLimitingEnabled;
+
+  @Value("${rateLimiting.seconds}")
+  private long rateLimitingSeconds;
 
   /**
    * The REST client interface for getting the TeleTAN from verificationserver.
    */
-  @Autowired
-  private TeleTanClientSI teleTanClient;
+  private final TeleTanService teleTanService;
+
+  public VerificationPortalController(TeleTanService teleTanService) {
+    this.teleTanService = teleTanService;
+  }
 
   /**
    * The Web GUI page request showing the index.html web page
@@ -106,7 +124,6 @@ public class VerificationPortalController {
   public String index() {
     return TEMPLATE_INDEX;
   }
-
 
   /**
    * The Web GUI page request showing the start.html web page without a teleTan.
@@ -123,6 +140,7 @@ public class VerificationPortalController {
 
     if (model != null) {
       model.addAttribute(ATTR_USER, user.replace("<", "").replace(">", ""));
+      model.addAttribute(ATTR_PW_RESET_URL, pwResetUrl);
     }
 
     HttpSession session = request.getSession();
@@ -141,9 +159,8 @@ public class VerificationPortalController {
    * @param model   the thymeleaf model
    * @return the name of the Thymeleaf template to be used for the HTML page
    */
-  @RequestMapping(value = ROUTE_TELETAN, method = {RequestMethod.GET, RequestMethod.POST})
+  @PostMapping(value = ROUTE_TELETAN)
   public String teletan(HttpServletRequest request, Model model) {
-
     TeleTan teleTan = new TeleTan("123456789");
     KeycloakAuthenticationToken principal = (KeycloakAuthenticationToken) request
       .getUserPrincipal();
@@ -157,19 +174,34 @@ public class VerificationPortalController {
         // get a new teleTan and switch to the TEMPLATE_TELETAN
         String token = principal.getAccount().getKeycloakSecurityContext()
           .getTokenString();
-        teleTan = teleTanClient.createTeleTan(token);
+        if (rateLimitingEnabled) {
+          checkRateLimitation(user);
+        } 
+        teleTan = teleTanService.createTeleTan(token);
         log.info("TeleTan successfully retrieved for user: {}", user);
         template = TEMPLATE_TELETAN;
       }
       session.setAttribute(SESSION_ATTR_TELETAN, "TeleTAN");
     }
-
     if (model != null) {
-      // set thymeleaf attributes (teleTAN and user name)
       model.addAttribute(ATTR_TELETAN, teleTan.getValue().replace("<", "").replace(">", ""));
       model.addAttribute(ATTR_USER, user.replace("<", "").replace(">", ""));
+      model.addAttribute(ATTR_PW_RESET_URL, pwResetUrl);
     }
     return template;
+  }
+
+  private void checkRateLimitation(String user) {
+    LocalDateTime usageTime = rateLimitingUserMap.get(user);
+    if (usageTime != null) {
+      if (LocalDateTime.now().minusSeconds(rateLimitingSeconds).isBefore(usageTime)) {
+        throw new RateLimitationException("Too many requests by user: " + user + " in a given amount of time");
+      } else {
+        rateLimitingUserMap.replace(user, LocalDateTime.now());
+      }
+    } else {
+      rateLimitingUserMap.put(user, LocalDateTime.now());
+    }
   }
 
   /**
@@ -185,6 +217,6 @@ public class VerificationPortalController {
     } catch (ServletException e) {
       log.error("Logout failed", e);
     }
-    return "redirect:" + TEMPLATE_TELETAN;
+    return "redirect:" + TEMPLATE_START;
   }
 }

@@ -2,10 +2,12 @@
 <html lang="de" xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="utf-8"/>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' style-src 'unsafe-inline'">
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link rel="stylesheet" type="text/css" href="/teletan.css"/>
   <title>TeleTAN Portal</title>
   <link rel="icon" href="/c-19_logo.png"/>
+  <script src="/logout.js"></script>
 </head>
 <body>
 <div class="header">
@@ -41,16 +43,10 @@
   </tr>
 </table>
 <form action="/cwa/logout" method="post">
-	<button class="button-logout" id="logout">Abmelden</button>
+	<button class="button-menu button-logout" id="logout">Abmelden</button>
   <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
 </form>
-<script>
-function showUserPopup() {
-  var popup = document.getElementById("logout");
-  popup.classList.toggle("show");
-}
-</script>
-
+<a th:href="${pwResetUrl}" target="_blank"><button class="button-menu button-pw-reset" id="password_reset">Passwort Ändern</button></a>
 <!-- END page specific content  -->
 </body>
 </html>

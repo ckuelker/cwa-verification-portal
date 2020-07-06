@@ -5,7 +5,7 @@
 
   <groupId>app.coronawarn.verification</groupId>
   <artifactId>cwa-verification-portal</artifactId>
-  <version>0.3.2-SNAPSHOT</version>
+  <version>1.0.1-SNAPSHOT</version>
   <packaging>jar</packaging>
 
   <name>cwa-verification-portal</name>
@@ -41,6 +41,11 @@
     <plugin.sonar.version>3.6.1.1688</plugin.sonar.version>
     <plugin.jacoco.version>0.8.5</plugin.jacoco.version>
     <guava.version>29.0-jre</guava.version>
+    <sonar.coverage.exclusions>
+      **/VerificationPortalApplication.java,  
+      **/SecurityConfig.java,
+      **/client/*
+    </sonar.coverage.exclusions>     
   </properties>
 
   <dependencyManagement>
@@ -100,6 +105,10 @@
     </dependency>
     <dependency>
       <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-sleuth</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
       <artifactId>spring-cloud-starter-openfeign</artifactId>
       <exclusions>
         <exclusion>
@@ -107,6 +116,10 @@
           <artifactId>guava</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>io.github.openfeign</groupId>
+      <artifactId>feign-httpclient</artifactId>
     </dependency>
     <dependency>
       <groupId>com.google.guava</groupId>
@@ -133,6 +146,12 @@
       <scope>test</scope>
     </dependency>
     <dependency>
+        <groupId>com.c4-soft.springaddons</groupId>
+        <artifactId>spring-security-oauth2-test-webmvc-addons</artifactId>
+        <version>2.1.0</version>
+        <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
       <version>${lombok.version}</version>
@@ -144,6 +163,11 @@
     <dependency>
       <groupId>io.micrometer</groupId>
       <artifactId>micrometer-registry-prometheus</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.session</groupId>
+      <artifactId>spring-session-core</artifactId>
+      <version>2.3.0.RELEASE</version>
     </dependency>
   </dependencies>
 

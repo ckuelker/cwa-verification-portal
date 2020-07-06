@@ -22,9 +22,27 @@
 package app.coronawarn.verification.portal.client;
 
 import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 
-@FeignClient(name = "cwa-verification-server", configuration = VerificationServerClientConfiguration.class,
-  url = "${cwa-verification-server.url}", primary = false)
-public interface VerificationServerFeignClient extends TeleTanClientSI {
+@FeignClient(name = "cwa-verification-server",
+  url = "${cwa-verification-server.url}",
+  configuration = VerificationServerClientConfig.class)
+public interface VerificationServerClient {
+  
+  public static final String HEADER_NAME_AUTHORIZATION  = "Authorization";
+
+  /**
+   * Call the verification service to get teletan from token.
+   *
+   * @param token the token to request teletan
+   * @return the teletan
+   */
+  @PostMapping(value = "/version/v1/tan/teletan",
+    produces = MediaType.APPLICATION_JSON_VALUE,
+    consumes = MediaType.APPLICATION_JSON_VALUE
+  )
+  TeleTan createTeleTan(@RequestHeader(HEADER_NAME_AUTHORIZATION) String token);
 
 }
